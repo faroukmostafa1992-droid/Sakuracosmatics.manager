@@ -4,9 +4,8 @@ name: Build Sakura Manager APK
 on:
   workflow_dispatch:
   push:
-    paths:
-      - '*.zip'
-      - '.github/workflows/build-apk.yml'
+    branches:
+      - main
 
 jobs:
   build:
@@ -34,13 +33,24 @@ jobs:
           mkdir project
           unzip -q Sakura_Manager_Phone_Build_Package-2.zip -d project
 
+      - name: Find Android project
+        run: |
+          PROJECT_DIR=$(find project -name settings.gradle -printf '%h\n' | head -n 1)
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "Android project not found"
+            find project -maxdepth 4 -type f
+            exit 1
+          fi
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
       - name: Build APK
-        working-directory: project
-        run: gradle --no-daemon assembleDebug
+        run: |
+          cd "$PROJECT_DIR"
+          gradle --no-daemon assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Sakura-Manager-APK
-          path: project/app/build/outputs/apk/debug/*.apk
-          
+          path: project/**/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
